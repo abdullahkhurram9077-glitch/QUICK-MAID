@@ -270,7 +270,7 @@
                   <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus-within:border-teal-600 focus-within:bg-white transition-all" id="locInputWrapper">
                     <span class="material-symbols-outlined text-teal-700 text-[20px]">near_me</span>
                     <input class="w-full bg-transparent text-sm sm:text-base text-slate-900 focus:outline-none placeholder-slate-400 font-medium" id="heroLocationInput" placeholder="e.g. Area 10, Plot 47, Lilongwe" type="text" oninput="clearError('heroLocationInput')"/>
-                    <button class="shrink-0 text-xs font-bold text-teal-700 bg-teal-100/70 hover:bg-teal-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer" onclick="detectUserLocation()" type="button">
+                    <button class="shrink-0 text-xs font-bold text-teal-700 bg-teal-100/70 hover:bg-teal-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer" id="autoDetectBtn" onclick="detectUserLocation()" type="button">
                       <span class="material-symbols-outlined text-[15px]">gps_fixed</span>
                       <span>Auto-Detect</span>
                     </button>
@@ -296,13 +296,13 @@
                   <div class="flex items-center justify-between mb-1.5">
                     <label class="font-label-md text-xs font-bold text-slate-700 uppercase tracking-wide">4. Customer Phone Number <span class="text-red-500">*</span></label>
                     <span class="text-xs text-teal-700 font-semibold flex items-center gap-1">
-                      <span class="material-symbols-outlined text-[14px]">verified</span> 2-Min Confirmation Call
+                      <span class="material-symbols-outlined text-[14px]">verified</span> 10-Digit Phone Required
                     </span>
                   </div>
                   <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus-within:border-teal-600 focus-within:bg-white transition-all" id="phoneInputWrapper">
                     <span class="material-symbols-outlined text-teal-700 text-[20px]">call</span>
-                    <input class="w-full bg-transparent text-sm sm:text-base text-slate-900 focus:outline-none placeholder-slate-400 font-medium" id="heroPhoneInput" placeholder="+265 999 123 456" type="tel" oninput="clearError('heroPhoneInput')"/>
-                    <span class="text-[11px] font-bold text-slate-600 bg-slate-200/80 px-2 py-1 rounded-md shrink-0">Required</span>
+                    <input class="w-full bg-transparent text-sm sm:text-base text-slate-900 focus:outline-none placeholder-slate-400 font-medium" id="heroPhoneInput" placeholder="e.g. 0999123456 (10 digits)" type="tel" maxlength="10" oninput="formatPhoneInput(this)"/>
+                    <span class="text-[11px] font-bold text-slate-600 bg-slate-200/80 px-2 py-1 rounded-md shrink-0" id="phoneBadge">10 Digits</span>
                   </div>
                 </div>
 
@@ -1091,17 +1091,100 @@
       }
     }
 
+    function formatPhoneInput(input) {
+      input.value = input.value.replace(/[^0-9]/g, '').slice(0, 10);
+      clearError('heroPhoneInput');
+      const badge = document.getElementById('phoneBadge');
+      if (badge) {
+        if (input.value.length === 10) {
+          badge.textContent = '✓ 10 Digits';
+          badge.className = 'text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-2 py-1 rounded-md shrink-0';
+        } else {
+          badge.textContent = input.value.length + '/10 Digits';
+          badge.className = 'text-[11px] font-bold text-slate-600 bg-slate-200/80 px-2 py-1 rounded-md shrink-0';
+        }
+      }
+    }
+
     function detectUserLocation() {
       const input = document.getElementById('heroLocationInput');
       const wrapper = document.getElementById('locInputWrapper');
-      if (input) {
-        input.value = 'Locating neighborhood GPS...';
-        setTimeout(() => {
-          input.value = 'Plot 47, Area 10, Lilongwe';
-          if (wrapper) wrapper.classList.remove('input-error');
-          clearError('heroLocationInput');
-        }, 400);
+      const gpsBtn = document.getElementById('autoDetectBtn');
+      
+      if (!navigator.geolocation) {
+        showToast('Geolocation is not supported by your browser. Please enter address manually.');
+        return;
       }
+      
+      if (gpsBtn) {
+        gpsBtn.disabled = true;
+        gpsBtn.innerHTML = '<span class="material-symbols-outlined text-[15px] animate-spin">refresh</span><span>Detecting...</span>';
+      }
+      if (input) {
+        input.value = 'Locating exact GPS coordinates...';
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          let locText = `GPS Coordinates: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+          try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data && data.address) {
+                const addr = data.address;
+                const road = addr.road || addr.suburb || addr.neighbourhood || addr.residential || '';
+                const city = addr.city || addr.town || addr.village || addr.county || 'Lilongwe';
+                if (road) {
+                  locText = `${road}, ${city} (GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+                } else if (data.display_name) {
+                  locText = `${data.display_name.split(',').slice(0, 3).join(',')} (GPS)`;
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('Reverse geocoding offline, using raw GPS coords', err);
+          }
+
+          if (input) {
+            input.value = locText;
+            if (wrapper) wrapper.classList.remove('input-error');
+            clearError('heroLocationInput');
+          }
+          if (gpsBtn) {
+            gpsBtn.disabled = false;
+            gpsBtn.innerHTML = '<span class="material-symbols-outlined text-[15px] text-emerald-600">check_circle</span><span class="text-emerald-700">Detected!</span>';
+            setTimeout(() => {
+              gpsBtn.innerHTML = '<span class="material-symbols-outlined text-[15px]">gps_fixed</span><span>Auto-Detect</span>';
+            }, 4000);
+          }
+          showToast('📍 Exact GPS location detected successfully!');
+        },
+        (error) => {
+          console.warn('GPS location error:', error);
+          if (input) {
+            input.value = '';
+            input.placeholder = 'e.g. Area 10, Plot 47, Lilongwe';
+          }
+          if (gpsBtn) {
+            gpsBtn.disabled = false;
+            gpsBtn.innerHTML = '<span class="material-symbols-outlined text-[15px]">gps_fixed</span><span>Auto-Detect</span>';
+          }
+          if (error.code === error.PERMISSION_DENIED) {
+            showToast('GPS permission denied. Please type your location manually.');
+          } else {
+            showToast('Unable to retrieve GPS location. Please enter manually.');
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
     }
 
     function clearError(fieldId) {
@@ -1208,7 +1291,7 @@
 
       const nameVal = nameInput ? nameInput.value.trim() : '';
       const phoneVal = phoneInput ? phoneInput.value.trim() : '';
-      const locVal = locInput ? locInput.value.trim() : '';
+      const locVal = locInput ? locVal.value.trim() : '';
 
       // Validate all required entries
       let errors = [];
@@ -1216,10 +1299,14 @@
         errors.push('Full Name');
         if (nameInput) nameInput.classList.add('input-error');
       }
-      if (!phoneVal) {
-        errors.push('Phone Number');
+      
+      // Enforce exactly 10 digits for customer phone number
+      const isTenDigits = /^\d{10}$/.test(phoneVal);
+      if (!phoneVal || !isTenDigits) {
+        errors.push(phoneVal ? 'Phone Number (must be 10 digits)' : 'Phone Number');
         if (phoneInput) phoneInput.classList.add('input-error');
       }
+      
       if (!locVal) {
         errors.push('Service Address / Location');
         if (locInput) locInput.classList.add('input-error');
@@ -1227,12 +1314,12 @@
 
       if (errors.length > 0) {
         if (errToast && errText) {
-          errText.textContent = 'Please fill in: ' + errors.join(', ') + ' before dispatching!';
+          errText.textContent = 'Please fix required fields: ' + errors.join(', ') + ' before dispatching!';
           errToast.classList.remove('hidden');
           errToast.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         if (!nameVal && nameInput) nameInput.focus();
-        else if (!phoneVal && phoneInput) phoneInput.focus();
+        else if ((!phoneVal || !isTenDigits) && phoneInput) phoneInput.focus();
         else if (!locVal && locInput) locInput.focus();
         return;
       }
