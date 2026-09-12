@@ -262,18 +262,14 @@
                 <!-- Location Input -->
                 <div>
                   <div class="flex items-center justify-between mb-1.5">
-                    <label class="font-label-md text-xs font-bold text-slate-700 uppercase tracking-wide">2. Your Service Address / Location <span class="text-red-500">*</span></label>
-                    <span class="text-xs text-emerald-700 font-semibold flex items-center gap-1">
-                      <span class="material-symbols-outlined text-[14px]">my_location</span> GPS Ready
-                    </span>
+                    <label class="font-label-md text-xs font-bold text-slate-700 uppercase tracking-wide" for="heroLocationInput">2. Your Service Address / Location <span class="text-red-500">*</span></label>
+                    <span class="text-[11px] font-medium text-red-500 font-bold">Required Entry</span>
                   </div>
-                  <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 focus-within:border-teal-600 focus-within:bg-white transition-all" id="locInputWrapper">
-                    <span class="material-symbols-outlined text-teal-700 text-[20px]">near_me</span>
-                    <input class="w-full bg-transparent text-sm sm:text-base text-slate-900 focus:outline-none placeholder-slate-400 font-medium" id="heroLocationInput" placeholder="e.g. Area 10, Plot 47, Lilongwe" type="text" oninput="clearError('heroLocationInput')"/>
-                    <button class="shrink-0 text-xs font-bold text-teal-700 bg-teal-100/70 hover:bg-teal-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer" id="autoDetectBtn" onclick="detectUserLocation()" type="button">
-                      <span class="material-symbols-outlined text-[15px]">gps_fixed</span>
-                      <span>Auto-Detect</span>
-                    </button>
+                  <div class="relative flex items-center">
+                    <div class="absolute left-3.5 text-teal-600 pointer-events-none">
+                      <span class="material-symbols-outlined text-[20px]">near_me</span>
+                    </div>
+                    <input class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-teal-600 focus:bg-white transition-all shadow-sm" id="heroLocationInput" placeholder="Enter your full location (e.g. Area 10, Plot 47, Lilongwe)" type="text" oninput="clearError('heroLocationInput')"/>
                   </div>
                 </div>
 
